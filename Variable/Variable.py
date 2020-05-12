@@ -114,7 +114,7 @@ class Variable(Object):
         if self.__type_id != other.__type_id:
             raise Exception("types are not equal")
         for i in range(len(self.__objects)):
-            self.__objects[i] += other.__object[i]
+            self.__objects[i] += other.__objects[i]
         return self
 
     def __add__(self, other):
@@ -126,7 +126,7 @@ class Variable(Object):
         if self.__type_id != other.__type_id:
             raise Exception("types are not equal")
         for i in range(len(self.__objects)):
-            self.__objects[i] -= other.__object[i]
+            self.__objects[i] -= other.__objects[i]
         return self
 
     def __sub__(self, other):
@@ -138,7 +138,7 @@ class Variable(Object):
         if self.__type_id != other.__type_id:
             raise Exception("types are not equal")
         for i in range(len(self.__objects)):
-            self.__objects[i] *= other.__object[i]
+            self.__objects[i] *= other.__objects[i]
         return self
 
     def __mul__(self, other):
@@ -150,7 +150,7 @@ class Variable(Object):
         if self.__type_id != other.__type_id:
             raise Exception("types are not equal")
         for i in range(len(self.__objects)):
-            self.__objects[i] /= other.__object[i]
+            self.__objects[i] /= other.__objects[i]
         return self
 
     def __truediv__(self, other):
@@ -294,6 +294,21 @@ class Variable(Object):
             raise Exception("typed not bool")
         ret_var = self
         ret_var.__NOT()
+        return ret_var
+
+    def __AND(self, other):
+        if len(self.__objects) != len(other.__objects):
+            raise Exception("dimensions are not equal")
+        if self.__objects[0].is_variable():
+            for i in range(len(self.__objects)):
+                self.__objects[i].__AND(other.__objects[i])
+        else:
+            for i in range(len(self.__objects)):
+                self.__objects[i].__value = bool(self.__objects[i].__value) and bool(other.__objects[i].__value)
+
+    def AND(self, other):
+        ret_var = self
+        ret_var.__AND(other)
         return ret_var
 
     def mx_true(self):
