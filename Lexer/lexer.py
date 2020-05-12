@@ -55,7 +55,7 @@ class lexer(object):
               'ASSIGNMENT', 'PLUS', 'MINUS', 'MULTIPLY', 'DIVIDE',
               'LBRACKET', 'RBRACKET',
               'OPEN_SQUARE_BRACKET', 'CLOSE_SQUARE_BRACKET',
-              'NEWLINE'] + list(reserved.values())
+              'COMMA', 'NEWLINE'] + list(reserved.values())
 
     precedence = (
         ('right', 'ASSIGNMENT'),
@@ -91,6 +91,8 @@ class lexer(object):
     t_LBRACKET = r'\('
     t_RBRACKET = r'\)'
 
+    t_COMMA = r'\,'
+
     @staticmethod
     def t_OCT_NUMBER(t):
         r'[0][0-9]+'
@@ -105,7 +107,7 @@ class lexer(object):
 
     @staticmethod
     def t_DEC_NUMBER(t):
-        r'[1-9][0-9]*'
+        r'[1-9][0-9]*|[0]'
         t.value = int(t.value)
         return t
 
@@ -136,15 +138,15 @@ class lexer(object):
         return self.lexer.token()
 
 
-#if __name__ == '__main__':
-  #  f = open('../Tests/Math/bubbleSorting')
-  #  data = f.read()
-  # f.close()
-  # lexer = lexer()
-  # lexer.input(data)
-  # while True:
-  #     token = lexer.token()
-  #     if token is None:
-  #         break
-  #     else:
-  #         print(token)
+if __name__ == '__main__':
+    f = open('../Tests/test.txt')
+    data = f.read()
+    f.close()
+    lexer = lexer()
+    lexer.input(data)
+    while True:
+        token = lexer.token()
+        if token is None:
+            break
+        else:
+            print(token)
