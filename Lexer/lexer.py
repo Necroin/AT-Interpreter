@@ -6,7 +6,7 @@ reserved = {
     'THANKS': 'THANKS',
     'TRUE': 'TRUE',
     'FALSE': 'FALSE',
-    'VAR': 'VAR_IDENTIFIER',
+    'VAR': 'VAR',
     'SIZE': 'SIZE_OPERATOR',
     'LOGITIZE': 'LOGITIZE_OPERATOR',
     'DIGITIZE': 'DIGITIZE_OPERATOR',
@@ -54,7 +54,7 @@ class lexer(object):
     tokens = ['OCT_NUMBER', 'HEX_NUMBER', 'DEC_NUMBER', 'VARIABLE',
               'ASSIGNMENT', 'PLUS', 'MINUS', 'MULTIPLY', 'DIVIDE',
               'LBRACKET', 'RBRACKET',
-              'OPEN_SQUARE_BRACKET', 'CLOSE_SQUARE_BRACKET',
+              'OS_BRACKET', 'CS_BRACKET',
               'COMMA', 'NEWLINE'] + list(reserved.values())
 
     precedence = (
@@ -63,6 +63,11 @@ class lexer(object):
         ('left', 'MULTIPLY', 'DIVIDE'),
         ('left', 'AND_OPERATOR'),
         ('right',
+         'LOGITIZE_OPERATOR',
+         'DIGITIZE_OPERATOR',
+         'REDUCE_OPERATOR',
+         'EXTEND_OPERATOR',
+         'SIZE_OPERATOR',
          'MXEQ_OPERATOR',
          'MXLT_OPERATOR',
          'MXGT_OPERATOR',
@@ -85,8 +90,8 @@ class lexer(object):
     t_MULTIPLY = r'\*'
     t_DIVIDE = r'\/'
 
-    t_OPEN_SQUARE_BRACKET = r'\['
-    t_CLOSE_SQUARE_BRACKET = r'\]'
+    t_OS_BRACKET = r'\['
+    t_CS_BRACKET = r'\]'
 
     t_LBRACKET = r'\('
     t_RBRACKET = r'\)'

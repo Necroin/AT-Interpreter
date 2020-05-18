@@ -1,14 +1,12 @@
-from typing import overload
-
 _BOOL_TYPE_ID_ = 0
 _INT_TYPE_ID_ = 1
 
-_VARIABLE_ = True
-_NOT_VARIABLE_ = False
+_VARIABLE_: bool = True
+_NOT_VARIABLE_: bool = False
 
 
 class Object:
-    def __init__(self, type_id, variable_flag):
+    def __init__(self, type_id, variable_flag: bool):
         self.__type_id = type_id
         self.__variable_flag = variable_flag
 
@@ -75,6 +73,8 @@ class Variable(Object):
         self.__objects = []
         self.__type_id = _type_id
         dimension = _dimensions[0]
+        if dimension <= 0:
+            raise Exception('invalid dimension')
         if len(_dimensions) > 1:
             other_dimensions = _dimensions[1:]
             for _ in range(dimension):
@@ -83,21 +83,35 @@ class Variable(Object):
             for _ in range(dimension):
                 self.__objects.append(Value(_type_id, _init_value))
 
-    @overload
-    def assign(self, _type_id, _count, _value):
-        if self.__type_id != _type_id:
-            raise Exception("types are not equal")
-        self.__objects.clear()
-        for i in range(_count):
-            self.__objects.append(_value)
-
-    @assign.overload
     def assign(self, _type_id, _value_array):
         if self.__type_id != _type_id:
             raise Exception("types are not equal")
         self.__objects.clear()
         for i in range(len(_value_array)):
             self.__objects.append(Value(_type_id, _value_array[i]))
+
+    def is_trivial(self):
+        if len(self.__objects) == 1 and self.__objects[0].is_variable() is False:
+            return True
+        return False
+
+    def trivial_assignment(self, other):
+        self.__objects[0].__value = other
+
+    def get(self, dimensions):
+        dimension = dimensions[0]
+        if len(dimensions) > len(self.global_size()):
+            raise Exception('dim list is too big')
+        if dimension > len(self.__objects):
+            raise Exception('dimension is too much')
+        if len(dimensions) > 1:
+            other_dimensions = dimensions[1:]
+            return self.__objects[dimension].get(other_dimensions)
+        else:
+            if self.__objects[dimension].is_variable():
+                return self.__objects[dimension]
+            else:
+                return Variable(self.__type_id, self.__objects[dimension], [1])
 
     def global_size(self):
         g_size = []
@@ -320,3 +334,7 @@ class Variable(Object):
         if self.__type_id != _BOOL_TYPE_ID_:
             raise Exception("typed not bool")
         return Variable(_BOOL_TYPE_ID_, self.__more_than_half(self.__mx(lambda x: bool(x) is False)), _dimensions=[1])
+
+    def __bool__(self):
+        if self.is_trivial():
+            return bool(self.__objects[0].__value)
