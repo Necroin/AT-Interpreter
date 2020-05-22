@@ -1,4 +1,6 @@
-from Variable.Variable import Variable
+import copy
+
+from Variable.Variable import Variable, reference_wrapper
 
 
 class OperationObject:
@@ -21,7 +23,7 @@ class Operand(OperationObject):
         self.__type_id = type_id
 
     def execute(self):
-        return self.__value
+        return reference_wrapper(Variable(self.__type_id, self.__value, [1]))
 
     def type(self):
         return self.__type_id
@@ -31,14 +33,14 @@ class Operand(OperationObject):
 
 
 class NamedOperand(OperationObject):
-    def __init__(self, variables_map: dict, variable_name, lineno):
+    def __init__(self, function_stack, variable_name, lineno):
         super().__init__(lineno)
-        self.__variables_map = variables_map
+        self.__function_stack = function_stack
         self.__variable_name = variable_name
         self.__lineno = lineno
 
     def execute(self):
-        variable = self.__variables_map.get(self.__variable_name, None)
+        variable = self.__function_stack[-1].get(self.__variable_name, None)
         if variable is None:
             raise Exception('variable ' + self.__variable_name + 'not defined, at line ' + str(self.__lineno))
         return variable
@@ -66,67 +68,82 @@ class UnaryOperator(OperationObject):
 
 
 class VarDeclaration(OperationObject):
-    def __init__(self, variables_map: dict, variable_name, dimensions, type_id, init_value, lineno):
+    def __init__(self, function_stack, variable_name, dimensions, type_id, init_value, lineno):
         super().__init__(lineno)
-        self.__variables_map = variables_map
+        self.__function_stack = function_stack
         self.__dimensions = dimensions
         self.__init_value = init_value
         self.__variable_name = variable_name
         self.__type_id = type_id
 
     def execute(self):
-        if self.__variables_map.get(self.__variable_name, None) is not None:
+        if self.__function_stack[-1].get(self.__variable_name, None) is not None:
             raise Exception('Error: this var already exist, at line ' + str(self.__lineno) + '\n')
-        self.__variables_map[self.__variable_name] = Variable(self.__type_id,
-                                                              self.__init_value,
-                                                              self.__dimensions.execute())
+        self.__function_stack[-1][self.__variable_name] = reference_wrapper(Variable(self.__type_id,
+                                                                                     self.__init_value,
+                                                                                     self.__dimensions.execute()))
+
+
+class VarDeclarationFromExpr(OperationObject):
+    def __init__(self, function_stack, variable_name, expression, lineno):
+        super().__init__(lineno)
+        self.__function_stack = function_stack
+        self.__expression = expression
+        self.__variable_name = variable_name
+
+    def execute(self):
+        if self.__function_stack[-1].get(self.__variable_name, None) is not None:
+            raise Exception('Error: this var already exist, at line ' + str(self.__lineno) + '\n')
+        self.__function_stack[-1][self.__variable_name] = reference_wrapper(self.__expression.execute().get())
 
 
 class Dimensions(OperationObject):
-    __dimensions = []
-
-    def __init__(self, lineno):
+    def __init__(self, dimensions, lineno):
         super().__init__(lineno)
-
-    def append(self, dimension):
-        self.__dimensions.append(dimension)
+        self.__dimensions = dimensions
 
     def execute(self):
+        executed_dimensions = []
         for i in range(len(self.__dimensions)):
-            if self.__dimensions[i].is_trivial():
-                self.__dimensions[i] = int(self.__dimensions[i].__objects[0].value)
+            executed_dimensions.append(self.__dimensions[i].execute())
+        for i in range(len(executed_dimensions)):
+            if executed_dimensions[i].get().is_trivial():
+                executed_dimensions[i] = int(executed_dimensions[i].get()._Variable__objects[0].get()._Value__value)
             else:
                 raise Exception('dimension is not trivial, at line ' + str(self.__lineno) + '\n')
-        return self.__dimensions
+        return executed_dimensions
 
 
 class Indexing(OperationObject):
-    def __init__(self, variables_map: dict, operand, dimensions, lineno):
+    def __init__(self, operand, dimensions, lineno):
         super().__init__(lineno)
         self.__dimensions = dimensions
-        self.__variables_map = variables_map
         self.__operand = operand
 
     def execute(self):
-        return self.__operand.execute().get(self.__dimensions.execute())
+        dimensions = self.__dimensions.execute()
+        for i in range(len(dimensions)):
+            dimensions[i] -= 1
+        return self.__operand.execute().get().get(dimensions)
 
 
 class Assignment(OperationObject):
-    def __init__(self, variables_map: dict, operand, other, lineno):
+    def __init__(self, operand, other, lineno):
         super().__init__(lineno)
-        self.__variables_map = variables_map
         self.__operand = operand
         self.__other = other
 
     def execute(self):
         variable = self.__operand.execute()
-        if variable.is_trivial() and self.__other.is_trivial():
-            variable.trivial_assignment(self.__other)
-        elif variable.is_trivial() and not self.__other.is_trivial():
-            variable.trivial_assignment(self.__other)
-            variable = variable.__objects[0]
+        other = self.__other.execute()
+        if variable.get().is_trivial and other.get().is_trivial():
+            variable.get().trivial_assignment(other.get()._Variable__objects[0].get())
+        elif variable.get().is_trivial() and not other.get().is_trivial():
+            t = copy.deepcopy(other.get())
+            variable.get().trivial_assignment(t)
+            variable.set(t)
         else:
-            variable = self.__other
+            variable.set(copy.deepcopy(other.get()))
         return variable
 
 
@@ -139,7 +156,7 @@ class Conditional(OperationObject):
         self.__invert = invert
 
     def execute(self):
-        cond_res = self.__condition.execute()
+        cond_res = self.__condition.execute().get()
         if cond_res.is_trivial():
             if self.__invert(bool(cond_res)):
                 for statement in self.__if_true:
@@ -152,35 +169,30 @@ class Conditional(OperationObject):
 
 
 class Function(OperationObject):
-    def __init__(self, functions_map, variables_map, function_name, parameters, operations, result_var, lineno):
+    def __init__(self, functions_map, stack, function_name, parameters, operations, result_var, lineno):
         super().__init__(lineno)
         self.__operations = operations
         self.__result_var = result_var
         self.__functions_map = functions_map
         self.__function_name = function_name
         self.__parameters = parameters
-        self.__stack = []
-        self.__variables_map = variables_map
+        self.__stack = stack
 
     def call(self, call_parameters):
         if len(call_parameters) != len(self.__parameters):
             raise Exception("incorrect arguments count")
+        call_parameters_dict = {}
         for i in range(len(self.__parameters)):
-            self.__variables_map[self.__parameters[i]] = call_parameters[i].execute()
+            call_parameters_dict[self.__parameters[i]] = call_parameters[i].execute()
+        self.__stack.append(call_parameters_dict)
         try:
             for _operation in self.__operations:
                 _operation.execute()
-            return self.__result_var.execute()
+            result = self.__result_var.execute()
+            self.__stack.pop()
+            return result
         except Exception as exception:
             raise exception
-
-    def push(self):
-        self.__stack.append(self.__variables_map)
-        self.__variables_map = {}
-
-    def pop(self):
-        self.__variables_map = self.__stack[-1]
-        self.__stack.pop()
 
 
 class FunctionCall(OperationObject):
@@ -194,9 +206,9 @@ class FunctionCall(OperationObject):
         try:
             function = self.__functions_map.get(self.__function_name, None)
             if function is not None:
-                function[0].push()
-                function[1] = function[0].call(self.__call_parameters)
-                function[0].pop()
+                result = function[0].call(self.__call_parameters)
+                function[1] = reference_wrapper(result.get())
+                return result
             else:
                 raise Exception('function not exist')
         except Exception as exception:
@@ -212,7 +224,7 @@ class GetFunctionResult(OperationObject):
     def execute(self):
         function = self.__functions_map.get(self.__function_name, None)
         if function is not None:
-            return function[1]
+            return reference_wrapper(function[1].get())
         else:
             raise Exception('function not exist')
 

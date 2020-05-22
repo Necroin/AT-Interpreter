@@ -1,0 +1,16 @@
+TASK SUM a b
+RESULT a + b
+
+
+
+TASK FINDEXIT
+VAR result = 0
+VAR a = 5
+VAR b = 3
+VAR sum = 0
+DO SUM a b
+sum = GET SUM
+
+
+
+RESULT result

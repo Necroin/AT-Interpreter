@@ -1,0 +1,29 @@
+TASK FINDEXIT
+VAR result = 0
+
+VAR f = DO Fib 15
+
+RESULT result
+
+
+
+TASK Fib n
+VAR result = 0
+SWITCH (MXEQ n)
+TRUE (
+    result = 0
+)
+FALSE ()
+
+SWITCH (MXEQ (n-1))
+TRUE (
+    result = 1
+)
+FALSE ()
+
+SWITCH (MXGTE (n-2))
+TRUE (
+    result = (DO Fib n-1) + (DO Fib n-2)
+)
+FALSE ()
+RESULT result

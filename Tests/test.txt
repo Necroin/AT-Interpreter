@@ -1,17 +1,9 @@
 FINDEXIT
+VAR result = 0
+VAR a = 1
+VAR b = 2
+VAR c = a + b
 
-VAR a = 5
-VAR b[5,3,5] = true
-VAR c = 1
-
-c = a + b
-
-LOGITIZE c
-DIGITIZE b
-
-SIZE b
-
-REDUCE [5] EXTEND c [3]
 
 
 

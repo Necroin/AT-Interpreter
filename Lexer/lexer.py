@@ -39,7 +39,7 @@ reserved = {
 
     # function
     'TASK': 'TASK',
-    'FINDEXIT': 'FINDEXIT',
+    # 'FINDEXIT': 'FINDEXIT',
     'RESULT': 'RESULT',
     'DO': 'DO',
     'GET': 'GET'
@@ -144,7 +144,7 @@ class lexer(object):
 
 
 if __name__ == '__main__':
-    f = open('../Tests/test.txt')
+    f = open('../Interpreter/Program.txt')
     data = f.read()
     f.close()
     lexer = lexer()
