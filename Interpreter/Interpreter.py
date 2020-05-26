@@ -1,7 +1,7 @@
 import sys
 from Parser.parser import parser
-from Robot.Robot import Robot, robot
-from Map.Map import Map, maze
+import Robot.Robot
+import Map.Map
 from Variable.Variable import reference_wrapper
 
 
@@ -18,6 +18,10 @@ class Interpreter:
             else:
                 try:
                     findexit[1] = reference_wrapper(findexit[0].call([]).get())
+                    if findexit[1].get()._Variable__objects[0].get()._Value__value == True:
+                        print('exit was found')
+                    else:
+                        print("can't find exit")
                 except Exception as exception:
                     sys.stderr.write(str(exception))
 
@@ -25,12 +29,11 @@ class Interpreter:
 interpreter = None
 
 if __name__ == '__main__':
-    # global maze, robot
-    # map_file = open('Map/Maze.txt')
-    # maze = Map(map_file.read())
-    # print(maze)
-    # start_x, start_y = maze.start_point()
-    # robot = Robot(start_x, start_y)
-    program_file = open('../Tests/Fibonacci.txt')
+    map_file = open('../Map/Maze.txt')
+    Map.Map.maze.set(Map.Map.Map(map_file.read()))
+    start_x, start_y = Map.Map.maze.get().start_point()
+    Robot.Robot.robot.set(Robot.Robot.Robot(start_x, start_y, False))
+    program_file = open('Program.txt')
+    print(Map.Map.maze.get())
     interpreter = Interpreter()
     interpreter.execute(program_file.read())

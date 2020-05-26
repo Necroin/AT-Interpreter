@@ -1,16 +1,283 @@
-TASK SUM a b
-RESULT a + b
-
-
-
 TASK FINDEXIT
-VAR result = 0
-VAR a = 5
-VAR b = 3
-VAR sum = 0
-DO SUM a b
-sum = GET SUM
+    VAR maze[1000,1000] = 0
+    VAR x = 500
+    VAR y = 500
+    VAR direction = 1
+    DO CheckAllPaths maze x y direction
+    VAR find = GET CheckAllPaths
+    maze[x, y] = 0
+    DO CheckAllPaths maze x y direction
+    find = find + GET CheckAllPaths
+    PRINT find
+RESULT find
 
 
+TASK CheckAllPaths maze x y direction
+    VAR find = FALSE
+    PRINT "X"
+    PRINT x
+    PRINT "Y"
+    PRINT y
+    VAR visible = GET ENVIRONMENT
+    VAR visible_size = SIZE visible
+    PRINT "visible_size_1"
+    PRINT visible_size[1]
+    PRINT "visible_size_2"
+    PRINT visible_size[2]
+    VAR x_centre = (visible_size[1]/2)
+    x_centre = x_centre + ((visible_size[1]) - (x_centre*2))
+    VAR y_centre = (visible_size[2]/2)
+    y_centre = y_centre + ((visible_size[1]) - (y_centre*2))
 
-RESULT result
+    PRINT "x_centre"
+    PRINT x_centre
+    PRINT "y_centre"
+    PRINT y_centre
+    PRINT "EXIT"
+    PRINT visible[x_centre, y_centre, 2]
+    SWITCH MXTRUE visible[x_centre, y_centre, 2]
+    TRUE (
+        PRINT "FIND_TRUE"
+        find = TRUE
+    )
+    FALSE(
+        PRINT "maze_x_y"
+        PRINT maze[x,y]
+        SWITCH MXEQ (maze[x, y] - 5)
+        FALSE (
+            maze[x, y] = 5
+            VAR forward_deadlock = TRUE
+
+            VAR side_x = x
+            VAR side_y = y
+
+            VAR tx_centre = x_centre
+            VAR ty_centre = y_centre
+            DO GetLeftCoords side_x side_y direction
+            DO GetLeftCoords tx_centre ty_centre direction
+            PRINT "_LEFT_"
+            PRINT "side_x"
+            PRINT side_x
+            PRINT "side_y"
+            PRINT side_y
+            PRINT "tx_centre"
+            PRINT tx_centre
+            PRINT "ty_centre"
+            PRINT ty_centre
+            PRINT "maze_side_x_side_y"
+            PRINT maze[side_x, side_y]
+            PRINT "visible_tx_centre_ty_centre_1"
+            PRINT visible[tx_centre, ty_centre, 1]
+            SWITCH (MXEQ (maze[side_x, side_y])) AND (MXFALSE (visible[tx_centre, ty_centre, 1])) AND (NOT find)
+            TRUE (
+                find = find + DO GoLeft maze x y direction
+                PRINT "CHECK_LEFT_FIND"
+                PRINT find
+            )
+            
+            side_x = x
+            side_y = y
+            tx_centre = x_centre
+            ty_centre = y_centre
+            DO GetRightCoords side_x side_y direction
+            DO GetRightCoords tx_centre ty_centre direction
+            SWITCH (MXEQ (maze[side_x, side_y])) AND (MXFALSE (visible[tx_centre, ty_centre, 1])) AND (NOT find)
+            TRUE (
+                find = find + DO GoRight maze x y direction
+                PRINT "CHECK_RIGHT_FIND"
+                PRINT find
+            )
+            
+            side_x = x
+            side_y = y
+            tx_centre = x_centre
+            ty_centre = y_centre
+            DO GetForwardCoords side_x side_y direction
+            DO GetForwardCoords tx_centre ty_centre direction
+            SWITCH (MXEQ (maze[side_x, side_y])) AND (MXFALSE (visible[tx_centre, ty_centre, 1])) AND (NOT find)
+            TRUE (
+                find = find + DO GoForward maze x y direction
+                PRINT "CHECK_FORWARD_FIND"
+                PRINT find
+                forward_deadlock = FALSE
+            )
+
+            SWITCH MXTRUE forward_deadlock
+            TRUE (
+                PRINT "ALL_RETURN"
+                DO RotateRight direction
+                DO RotateRight direction
+            )
+        )
+    )
+    PRINT "ALL_FIND"
+    PRINT find
+RESULT find
+
+TASK GoLeft maze x y direction
+    DO RotateLeft direction
+    DO Move x y direction
+    VAR find = DO CheckAllPaths maze x y direction
+
+    PRINT find
+    SWITCH MXFALSE find
+    TRUE (
+        PRINT "LEFT_RETURN"
+        DO Move x y direction
+        DO RotateLeft direction
+    )
+    PRINT x
+    PRINT y
+RESULT find
+
+TASK GoRight maze x y direction
+    DO RotateRight direction
+    DO Move x y direction
+    VAR find = DO CheckAllPaths maze x y direction
+
+    PRINT find
+    SWITCH MXFALSE find
+    TRUE (
+        PRINT "RIGHT_RETURN"
+        DO Move x y direction
+        DO RotateRight direction
+    )
+    PRINT x
+    PRINT y
+RESULT find
+
+TASK GoForward maze x y direction
+    DO Move x y direction
+    VAR find = DO CheckAllPaths maze x y direction
+
+    PRINT find
+    SWITCH MXFALSE find
+    TRUE (
+        PRINT "FORWARD_RETURN"
+        DO Move x y direction
+    )
+    PRINT x
+    PRINT y
+RESULT find
+
+
+TASK GetLeftCoords x y direction
+    SWITCH MXEQ (direction - 1)
+    TRUE (
+        y = y + 1
+    )
+    SWITCH MXEQ (direction - 2)
+    TRUE (
+        x = x - 1
+    )
+    SWITCH MXEQ (direction - 3)
+    TRUE (
+        y = y - 1
+    )
+    SWITCH MXEQ (direction - 4)
+    TRUE (
+        x = x + 1
+    )
+RESULT 0
+
+
+TASK GetRightCoords x y direction
+    SWITCH MXEQ (direction - 1)
+    TRUE (
+        y = y - 1
+    )
+    SWITCH MXEQ (direction - 2)
+    TRUE (
+        x = x + 1
+    )
+    SWITCH MXEQ (direction - 3)
+    TRUE (
+        y = y + 1
+    )
+    SWITCH MXEQ (direction - 4)
+    TRUE (
+        x = x - 1
+    )
+RESULT 0
+
+TASK GetForwardCoords x y direction
+    SWITCH MXEQ (direction - 1)
+    TRUE (
+        x = x - 1
+    )
+    SWITCH MXEQ (direction - 2)
+    TRUE (
+        y = y - 1
+    )
+    SWITCH MXEQ (direction - 3)
+    TRUE (
+        x = x + 1
+    )
+    SWITCH MXEQ (direction - 4)
+    TRUE (
+        y = y + 1
+    )
+RESULT 0
+
+TASK GetBackCoords x y direction
+    SWITCH MXEQ (direction - 1)
+    TRUE (
+        x = x + 1
+    )
+    SWITCH MXEQ (direction - 2)
+    TRUE (
+        y = y + 1
+    )
+    SWITCH MXEQ (direction - 3)
+    TRUE (
+        x = x - 1
+    )
+    SWITCH MXEQ (direction - 4)
+    TRUE (
+        y = y - 1
+    )
+RESULT 0
+
+TASK RotateLeft direction
+    direction = direction - 1
+    SWITCH MXEQ direction
+    TRUE (
+        direction = 4
+    )
+    ROTATE LEFT
+RESULT 0
+
+TASK RotateRight direction
+    direction = direction + 1
+    SWITCH MXEQ (direction - 5)
+    TRUE (
+        direction = 1
+    )
+    ROTATE RIGHT
+RESULT 0
+
+TASK Move x y direction
+    PRINT "PREV_X_Y"
+    PRINT x
+    PRINT y
+    SWITCH MXEQ (direction - 1)
+    TRUE (
+        x = x - 1
+    )
+    SWITCH MXEQ (direction - 2)
+    TRUE (
+        y = y - 1
+    )
+    SWITCH MXEQ (direction - 3)
+    TRUE (
+        x = x + 1
+    )
+    SWITCH MXEQ (direction - 4)
+    TRUE (
+        y = y + 1
+    )
+    PRINT "NEW_X_Y"
+    PRINT x
+    PRINT y
+    MOVE
+RESULT 0

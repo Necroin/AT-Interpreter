@@ -30,12 +30,14 @@ reserved = {
     'BOUNDARY': 'BOUNDARY',
     'STEP': 'STEP',
     'SWITCH': 'SWITCH',
+    'PRINT':'PRINT',
 
     # robot
     'MOVE': 'MOVE',
-    'ROTATE LEFT': 'ROTATE_LEFT',
-    'ROTATE_RIGHT': 'ROTATE_RIGHT',
-    'GET ENVIRONMENT': 'GET_ENVIRONMENT',
+    'ROTATE': 'ROTATE',
+    'LEFT': 'LEFT',
+    'RIGHT': 'RIGHT',
+    'ENVIRONMENT': 'ENVIRONMENT',
 
     # function
     'TASK': 'TASK',
@@ -54,7 +56,7 @@ class lexer(object):
     tokens = ['OCT_NUMBER', 'HEX_NUMBER', 'DEC_NUMBER', 'VARIABLE',
               'ASSIGNMENT', 'PLUS', 'MINUS', 'MULTIPLY', 'DIVIDE',
               'LBRACKET', 'RBRACKET',
-              'OS_BRACKET', 'CS_BRACKET',
+              'OS_BRACKET', 'CS_BRACKET', 'QUOTE',
               'COMMA', 'NEWLINE'] + list(reserved.values())
 
     precedence = (
@@ -92,6 +94,8 @@ class lexer(object):
 
     t_OS_BRACKET = r'\['
     t_CS_BRACKET = r'\]'
+
+    t_QUOTE = r'"'
 
     t_LBRACKET = r'\('
     t_RBRACKET = r'\)'

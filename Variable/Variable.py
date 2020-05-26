@@ -39,7 +39,7 @@ class Value(Object):
 
     def __iadd__(self, other):
         if self._Object__type_id != other._Object__type_id:
-            raise Exception("types are not equal")
+            raise Exception(">>> types are not equal")
         self.__value += other.__value
         return self
 
@@ -50,7 +50,7 @@ class Value(Object):
 
     def __isub__(self, other):
         if self._Object__type_id != other._Object__type_id:
-            raise Exception("types are not equal")
+            raise Exception(">>> types are not equal")
         self.__value -= other.__value
         return self
 
@@ -61,7 +61,7 @@ class Value(Object):
 
     def __imul__(self, other):
         if self._Object__type_id != other._Object__type_id:
-            raise Exception("types are not equal")
+            raise Exception(">>> types are not equal")
         self.__value *= other.__value
         return self
 
@@ -72,8 +72,8 @@ class Value(Object):
 
     def __itruediv__(self, other):
         if self._Object__type_id != other._Object__type_id:
-            raise Exception("types are not equal")
-        self.__value /= other.__value
+            raise Exception(">>> types are not equal")
+        self.__value //= other.__value
         return self
 
     def __truediv__(self, other):
@@ -88,7 +88,7 @@ class Variable(Object):
         self.__objects = []
         dimension = _dimensions[0]
         if dimension <= 0:
-            raise Exception('invalid dimension')
+            raise Exception('>>> invalid dimension')
         if len(_dimensions) > 1:
             other_dimensions = _dimensions[1:]
             for _ in range(dimension):
@@ -99,7 +99,7 @@ class Variable(Object):
 
     def assign(self, _type_id, _value_array):
         if self._Object__type_id != _type_id:
-            raise Exception("types are not equal")
+            raise Exception(">>> types are not equal")
         self.__objects.clear()
         for i in range(len(_value_array)):
             self.__objects.append(reference_wrapper(Value(_type_id, _value_array[i])))
@@ -115,9 +115,9 @@ class Variable(Object):
     def get(self, dimensions):
         dimension = dimensions[0]
         if len(dimensions) > len(self.global_size()):
-            raise Exception('dim list is too big')
+            raise Exception('>>> dim list is too big')
         if dimension > len(self.__objects):
-            raise Exception('dimension is too much')
+            raise Exception('>>> dimension is too much')
         if len(dimensions) > 1:
             other_dimensions = dimensions[1:]
             return self.__objects[dimension].get().get(other_dimensions)
@@ -137,11 +137,13 @@ class Variable(Object):
         return [len(self.__objects)]
 
     def size(self):
-        return Variable(_INT_TYPE_ID_, 0, range(0)).assign(_INT_TYPE_ID_, self.global_size())
+        ret_var = Variable(_INT_TYPE_ID_, 0, [1])
+        ret_var.assign(_INT_TYPE_ID_, self.global_size())
+        return reference_wrapper(ret_var)
 
     def __iadd__(self, other):
         if self._Object__type_id != other._Object__type_id:
-            raise Exception("types are not equal")
+            raise Exception(">>> types are not equal")
         for i in range(len(self.__objects)):
             self.__objects[i]._reference_wrapper__value[0] += other.__objects[i]._reference_wrapper__value[0]
         return self
@@ -153,7 +155,7 @@ class Variable(Object):
 
     def __isub__(self, other):
         if self._Object__type_id != other._Object__type_id:
-            raise Exception("types are not equal")
+            raise Exception(">>> types are not equal")
         for i in range(len(self.__objects)):
             self.__objects[i]._reference_wrapper__value[0] -= other.__objects[i]._reference_wrapper__value[0]
         return self
@@ -165,7 +167,7 @@ class Variable(Object):
 
     def __imul__(self, other):
         if self._Object__type_id != other._Object__type_id:
-            raise Exception("types are not equal")
+            raise Exception(">>> types are not equal")
         for i in range(len(self.__objects)):
             self.__objects[i]._reference_wrapper__value[0] *= other.__objects[i]._reference_wrapper__value[0]
         return self
@@ -177,7 +179,7 @@ class Variable(Object):
 
     def __itruediv__(self, other):
         if self._Object__type_id != other._Object__type_id:
-            raise Exception("types are not equal")
+            raise Exception(">>> types are not equal")
         for i in range(len(self.__objects)):
             self.__objects[i]._reference_wrapper__value[0] /= other.__objects[i]._reference_wrapper__value[0]
         return self
@@ -189,7 +191,7 @@ class Variable(Object):
 
     def logitize(self):
         if self._Object__type_id != _INT_TYPE_ID_:
-            raise Exception("type is bool")
+            raise Exception(">>> type is bool")
         if self.__objects[0].get().is_variable():
             for _object in self.__objects:
                 _object.get().logitize()
@@ -200,7 +202,7 @@ class Variable(Object):
 
     def digitize(self):
         if self._Object__type_id != _BOOL_TYPE_ID_:
-            raise Exception("type is bool")
+            raise Exception(">>> type is int")
         if self.__objects[0].get().is_variable():
             for _object in self.__objects:
                 _object.get().digitize()
@@ -209,11 +211,11 @@ class Variable(Object):
                 _object.get()._Value__value = int(_object.get()._Value__value)
         return reference_wrapper(self)
 
-    def reduce(self, _dimensions):
+    def __reduce(self, _dimensions):
         if len(_dimensions) > len(self.global_size()):
-            raise Exception("reduce list is too much")
+            raise Exception(">>> reduce list is too much")
         if _dimensions[0] >= len(self.__objects):
-            raise Exception("reduce size is too much")
+            raise Exception(">>> reduce size is too much")
         for _ in range(_dimensions[0]):
             self.__objects.pop()
         if len(_dimensions) > 1:
@@ -221,17 +223,23 @@ class Variable(Object):
                 other_dimensions = _dimensions[1:]
                 _object.get().reduce(other_dimensions)
 
-        return reference_wrapper(self)
+        return self
 
-    def extent(self, _dimensions):
+    def reduce(self, _dimensions):
+        ret_var = copy.deepcopy(self)
+        ret_var.__reduce(_dimensions)
+        return reference_wrapper(ret_var)
+
+    def __extend(self, _dimensions):
         default_value = (True, 0)
 
         if len(_dimensions) > len(self.global_size()):
-            raise Exception("reduce list is too much")
+            raise Exception(">>> extend list is too much")
 
         dimension = _dimensions[0]
         if self.__objects[0].get().is_variable():
-            global_size_list = self.global_size().pop()
+            global_size_list = self.global_size()
+            global_size_list.pop()
             for _ in range(dimension):
                 self.__objects.append(
                     reference_wrapper(
@@ -244,9 +252,15 @@ class Variable(Object):
         other_dimensions = _dimensions[1:]
         if len(other_dimensions) > 0:
             for _object in self.__objects:
-                _object.get().extent(other_dimensions)
+                _object.get().extend(other_dimensions)
 
-        return reference_wrapper(self)
+        return self
+
+    def extend(self, _dimensions):
+        ret_var = copy.deepcopy(self)
+        ret_var.__extend(_dimensions)
+        return reference_wrapper(ret_var)
+
 
     def __mx(self, _operator):
         corrects: int = 0
@@ -331,9 +345,9 @@ class Variable(Object):
                 _object.get()._Value__value = not bool(_object.get()._Value__value)
 
     def NOT(self):
-        if self.__type_id != _BOOL_TYPE_ID_:
+        if self._Object__type_id != _BOOL_TYPE_ID_:
             raise Exception("typed not bool")
-        ret_var = self
+        ret_var = copy.deepcopy(self)
         ret_var.__NOT()
         return reference_wrapper(ret_var)
 
@@ -367,3 +381,7 @@ class Variable(Object):
 
     def __bool__(self):
         return bool(self.__objects[0].get()._Value__value)
+
+    def __repr__(self):
+        print(self.__objects[0].get()._Value__value)
+        return ""

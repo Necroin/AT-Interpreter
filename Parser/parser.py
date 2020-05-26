@@ -1,7 +1,7 @@
 import ply.yacc as yacc
 from ply.lex import LexError
 import sys
-from Robot.Robot import robot
+import Robot.Robot
 from Lexer.lexer import lexer
 from Operations.operations import *
 from Variable.Variable import _BOOL_TYPE_ID_, _INT_TYPE_ID_
@@ -20,7 +20,7 @@ class parser(object):
 
     def parse(self, data):
         try:
-            self.parser.parse(data, debug=True)
+            self.parser.parse(data, debug=False)
             return self.functions_map, self.good
         except LexError:
             sys.stderr.write(f'Illegal token {data}\n')
@@ -42,7 +42,7 @@ class parser(object):
                         function_name=p[1][0],
                         parameters=p[1][1],
                         operations=p[3],
-                        result_var=p[5],  # NamedOperand(self.__function_stack, p[5], p[1][2]),
+                        result_var=p[5],
                         lineno=p[1][2]
                         )
         self.functions_map[p[1][0]] = [p[0], None]
@@ -64,6 +64,12 @@ class parser(object):
         p[0] = [p[2], p[3], p.lineno(1)]
 
     @staticmethod
+    def p_func_decl_error(p):
+        """func_decl : TASK error"""
+        p[0] = ["", [], p.lineno(1)]
+        sys.stderr.write(f'>>> incorrect function declaration, at {p.lineno(1)}  line \n')
+
+    @staticmethod
     def p_parameters(p):
         """parameters : VARIABLE parameters
                       | VARIABLE"""
@@ -78,61 +84,91 @@ class parser(object):
         p[0] = []
 
     @staticmethod
+    def p_parameters_error(p):
+        """parameters : error"""
+        p[0] = []
+        sys.stderr.write(f'>>> incorrect parameters setting, at {p.lineno(1)}  line \n')
+
+    @staticmethod
     def p_statements(p):
         """statements : statement statements
                       | statement"""
         if len(p) == 3:
-            p[0] = [p[1]] + p[2]
+            p[0] = [p[1][0], p[1][1]] + p[2]
         else:
-            p[0]: list = [p[1]]
+            p[0]: list = [p[1][0], p[1][1]]
 
     @staticmethod
     def p_statement(p):
         """statement : PLEASE statement THANKS NEWLINE
+                     | PLEASE statement NEWLINE
                      | var_declaration NEWLINE
                      | expression NEWLINE
                      | for
                      | switch
                      | command NEWLINE
+                     | print NEWLINE
+                     | print_word NEWLINE
                      | empty NEWLINE"""
         if len(p) == 5:
-            p[0] = p[2]
+            p[0] = [p[2][0], Command(operand=Robot.Robot.robot, command=lambda x: x.get().give_mood_points(4),
+                                     lineno=p.lineno(1))]
+        elif len(p) == 4:
+            p[0] = [p[2][0], Command(operand=Robot.Robot.robot, command=lambda x: x.get().give_mood_points(2),
+                                     lineno=p.lineno(1))]
         else:
-            p[0] = p[1]
+            p[0] = [p[1], Command(operand=Robot.Robot.robot, command=lambda x: x.get().give_mood_points(-4),
+                                  lineno=p[1].lineno())]
+
+    @staticmethod
+    def p_print_word(p):
+        """print_word : PRINT QUOTE VARIABLE QUOTE"""
+        p[0] = Empty()  # PrintStr(p[3], p.lineno(1))
+
+    @staticmethod
+    def p_print(p):
+        """print : PRINT expression"""
+        p[0] = Empty()  # Print(p[2], p.lineno(1))
+
+    @staticmethod
+    def p_statement_thanks(p):
+        """statement : statement THANKS NEWLINE"""
+        p[0] = [p[1][0],
+                Command(operand=Robot.Robot.robot, command=lambda x: x.get().give_mood_points(2), lineno=p[1].lineno())]
 
     @staticmethod
     def p_command_move(p):
         """command : MOVE"""
         p[0] = Command(
-            operand=robot,
-            command=lambda x: x.move(),
+            operand=Robot.Robot.robot,
+            command=lambda x: x.get().move(),
             lineno=p.lineno(1)
         )
 
     @staticmethod
     def p_command_rotate_left(p):
-        """command : ROTATE_LEFT"""
+        """command : ROTATE LEFT"""
         p[0] = Command(
-            operand=robot,
-            command=lambda x: x.rotate_left(),
+            operand=Robot.Robot.robot,
+            command=lambda x: x.get().rotate_left(),
             lineno=p.lineno(1)
         )
 
     @staticmethod
     def p_command_rotate_right(p):
-        """command : ROTATE_RIGHT"""
+        """command : ROTATE RIGHT"""
         p[0] = Command(
-            operand=robot,
-            command=lambda x: x.rotate_right(),
+            operand=Robot.Robot.robot,
+            command=lambda x: x.get().rotate_right(),
             lineno=p.lineno(1)
         )
 
     @staticmethod
-    def p_command_get_environment(p):
-        """command : GET_ENVIRONMENT"""
+    def p_expression_get_environment(p):
+        """expression : GET ENVIRONMENT"""
         p[0] = Command(
-            operand=robot,
-            command=lambda x: x.get_environment(),
+            operand=Robot.Robot.robot,
+            command=lambda x: x.get().get_environment(),
             lineno=p.lineno(1)
         )
 
@@ -148,6 +184,12 @@ class parser(object):
         )
 
     @staticmethod
+    def p_for_error(p):
+        """for : FOR error"""
+        p[0] = Empty()
+        sys.stderr.write(f'>>> incorrect for construction using, at {p.lineno(1)}  line \n')
+
+    @staticmethod
     def p_statements_group_statements(p):
         """statements_group : LBRACKET NEWLINE statements RBRACKET NEWLINE"""
         p[0] = p[3]
@@ -155,7 +197,7 @@ class parser(object):
     @staticmethod
     def p_statements_group_statement(p):
         """statements_group : statement"""
-        p[0] = [p[1]]
+        p[0] = [p[1][0], p[1][1]]
 
     @staticmethod
     def p_statements_group_empty(p):
@@ -185,9 +227,32 @@ class parser(object):
         )
 
     @staticmethod
-    def p_assignment(p):
-        """assignment : expression ASSIGNMENT expression"""
-        p[0] = Assignment(p[1], p[3], p.lineno(2))
+    def p_switch_true_only_true(p):
+        """switch : SWITCH expression NEWLINE TRUE statements_group"""
+        p[0] = Conditional(
+            invert=lambda condition: condition,
+            condition=p[2],
+            if_true=p[5],
+            if_false=[Empty()],
+            lineno=p.lineno(1)
+        )
+
+    @staticmethod
+    def p_switch_true_only_false(p):
+        """switch : SWITCH expression NEWLINE FALSE statements_group"""
+        p[0] = Conditional(
+            invert=lambda condition: condition,
+            condition=p[2],
+            if_true=[Empty()],
+            if_false=p[5],
+            lineno=p.lineno(1)
+        )
+
+    @staticmethod
+    def p_switch_error(p):
+        """switch : SWITCH error"""
+        p[0] = Empty()
+        sys.stderr.write(f'>>> incorrect switch construction using, at {p.lineno(1)}  line \n')
 
     @staticmethod
     def p_binary_expression(p):
@@ -316,6 +381,11 @@ class parser(object):
         p[0] = p[1]
 
     @staticmethod
+    def p_assignment(p):
+        """assignment : expression ASSIGNMENT expression"""
+        p[0] = Assignment(p[1], p[3], p.lineno(2))
+
+    @staticmethod
     def p_reduce(p):
         """reduce : REDUCE_OPERATOR expression dimensions"""
         p[0] = BinaryOperator(
@@ -324,6 +394,12 @@ class parser(object):
             operator=lambda operand, dimensions: operand.get().reduce(dimensions),
             lineno=p.lineno(1)
         )
+
+    @staticmethod
+    def p_reduce_error(p):
+        """reduce : REDUCE_OPERATOR error"""
+        p[0] = Empty()
+        sys.stderr.write(f'>>> incorrect reduce operator using, at {p.lineno(1)}  line \n')
 
     @staticmethod
     def p_extend(p):
@@ -335,6 +411,12 @@ class parser(object):
             lineno=p.lineno(1)
         )
 
+    @staticmethod
+    def p_extend_error(p):
+        """extend : EXTEND_OPERATOR error"""
+        p[0] = Empty()
+        sys.stderr.write(f'>>> incorrect extend operator using, at {p.lineno(1)}  line \n')
+
     def p_do(self, p):
         """do : DO VARIABLE call_parameters"""
         p[0] = FunctionCall(
@@ -345,6 +427,12 @@ class parser(object):
         )
 
     @staticmethod
+    def p_do_error(p):
+        """do : DO error"""
+        p[0] = Empty()
+        sys.stderr.write(f'>>> incorrect function calling, at {p.lineno(1)}  line \n')
+
+    @staticmethod
     def p_call_parameters(p):
         """call_parameters : call_parameter call_parameters
                            | call_parameter"""
@@ -353,13 +441,16 @@ class parser(object):
         else:
             p[0]: list = [p[1]]
 
-    # def p_call_parameter(self, p):
-    #     """call_parameter : VARIABLE"""
-    #     p[0] = NamedOperand(self.__function_stack, p[1], p.lineno(1))
-
-    def p_call_parameter(self, p):
+    @staticmethod
+    def p_call_parameter(p):
         """call_parameter : expression"""
         p[0] = p[1]
+
+    @staticmethod
+    def p_call_parameter_error(p):
+        """call_parameter : error"""
+        p[0] = Empty()
+        sys.stderr.write(f'>>> incorrect call parameter setting, at {p.lineno(1)}  line \n')
 
     def p_get(self, p):
         """get : GET VARIABLE"""
@@ -370,9 +461,28 @@ class parser(object):
         )
 
     @staticmethod
+    def p_get_error(p):
+        """get : GET error"""
+        p[0] = Empty()
+        sys.stderr.write(f'>>> incorrect get function last result operator using, at {p.lineno(1)}  line\n'
+                         f'    GET operator require function name\n')
+
+    @staticmethod
     def p_expression_bracket(p):
         """expression : LBRACKET expression RBRACKET"""
         p[0] = p[2]
+
+    @staticmethod
+    def p_expression_bracket_l_error(p):
+        """expression : error expression RBRACKET"""
+        p[0] = Empty()
+        sys.stderr.write(f'>>> opening bracket missing, at {p.lineno(1)}  line\n')
+
+    @staticmethod
+    def p_expression_bracket_r_error(p):
+        """expression : LBRACKET expression error"""
+        p[0] = Empty()
+        sys.stderr.write(f'>>> closing bracket missing, at {p.lineno(1)}  line\n')
 
     def p_expression_variable(self, p):
         """expression : VARIABLE"""
@@ -425,17 +535,6 @@ class parser(object):
             lineno=p.lineno(1)
         )
 
-    # def p_var_declaration(self, p):
-    #     """var_declaration : VAR VARIABLE ASSIGNMENT initializer"""
-    #     p[0] = VarDeclaration(
-    #         function_stack=self.__function_stack,
-    #         variable_name=p[2],
-    #         dimensions=Dimensions([Operand(_INT_TYPE_ID_, 1, p.lineno(1))], p.lineno(1)),
-    #         type_id=p[4].type(),
-    #         init_value=p[4].value(),
-    #         lineno=p.lineno(1)
-    #     )
-
     def p_var_declaration_expression(self, p):
         """var_declaration : VAR VARIABLE ASSIGNMENT expression"""
         p[0] = VarDeclarationFromExpr(
@@ -446,12 +545,19 @@ class parser(object):
         )
 
     @staticmethod
+    def p_var_declaration_error(p):
+        """var_declaration : VAR error"""
+        p[0] = Empty()
+        sys.stderr.write(f'>>> incorrect variable declaration, at {p.lineno(1)}  line\n'
+                         f'    var declaration require following order: VAR NAME (optional [dim,...]) = initializer\n')
+
+    @staticmethod
     def p_indexing(p):
         """indexing : expression OS_BRACKET dimensions CS_BRACKET"""
         p[0] = Indexing(
             operand=p[1],
-            dimensions=Dimensions(p[3], p.lineno(1)),
-            lineno=p.lineno(1)
+            dimensions=Dimensions(p[3], p.lineno(2)),
+            lineno=p.lineno(2)
         )
 
     @staticmethod
@@ -467,6 +573,12 @@ class parser(object):
     def p_dimension(p):
         """dimension : expression"""
         p[0] = p[1]
+
+    @staticmethod
+    def p_dimension_error(p):
+        """dimension : error"""
+        p[0] = Empty()
+        sys.stderr.write(f'>>> incorrect dimension setting, at {p.lineno(1)}  line \n')
 
     @staticmethod
     def p_empty(p):

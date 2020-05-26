@@ -1,7 +1,7 @@
 TASK FINDEXIT
 VAR result = 0
 
-VAR f = DO Fib 15
+VAR f = DO Fib 20
 
 RESULT result
 

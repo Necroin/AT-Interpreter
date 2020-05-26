@@ -5,28 +5,13 @@ from pip._vendor.colorama.win32 import COORD
 from win32api import *
 from win32console import *
 
+from Variable.Variable import reference_wrapper
+import Robot.Robot
 
-class MapObject:
-    def __init__(self, symbol):
-        self.__symbol = symbol
-
-    def symbol(self):
-        return self.__symbol
-
-
-class Wall(MapObject):
-    def __init__(self):
-        super().__init__('#')
-
-
-class Respawn(MapObject):
-    def __init__(self):
-        super().__init__('*')
-
-
-class FreeCell(MapObject):
-    def __init__(self):
-        super().__init__(' ')
+wall_symbol = "#"
+free_cell_symbol = " "
+respawn_symbol = "*"
+exit_symbol = "~"
 
 
 class Map:
@@ -41,39 +26,52 @@ class Map:
         self.__maze.append([])
         row_index = 0
         for symbol in self.__data:
-            if symbol == ' ':
-                self.__maze[row_index].append(FreeCell())
-            if symbol == '#':
-                self.__maze[row_index].append(Wall())
             if symbol == '*':
-                self.__maze[row_index].append(Respawn())
-            if symbol == '\n':
+                self.__start_x = len(self.__maze[row_index])
+                self.__start_y = row_index
+            if symbol != '\n':
+                self.__maze[row_index].append(symbol)
+            else:
                 row_index += 1
                 self.__maze.append([])
 
     def start_point(self):
         return self.__start_x, self.__start_y
 
+    def get(self, x, y):
+        if x < 0 or x >= len(self.__maze[0]) or y < 0 or y >= len(self.__maze):
+            return free_cell_symbol
+        return self.__maze[y][x]
+
     def __repr__(self):
+        i = 0
+        x, y = Robot.Robot.robot.get().position()
         for row in self.__maze:
-            for map_object in row:
-                print(map_object.symbol(), end="")
+            j = 0
+            for symbol in row:
+                if x == j and y == i:
+                    print('@', end="")
+                else:
+                    print(symbol, end="")
+                j += 1
             print()
+            i += 1
+        print(Robot.Robot.robot.get().get_dir())
         return ""
 
     def tkprint(self, canvas: Canvas):
         for i in range(len(self.__maze)):
             for j in range(len(self.__maze[i])):
-                if self.__maze[i][j].symbol() == '#':
+                if self.__maze[i][j] == wall_symbol:
                     canvas.create_rectangle(i, j, 1, 1, fill='red')
 
 
-maze = None
+maze = reference_wrapper(None)
 
 if __name__ == '__main__':
     map_file = open('Maze.txt')
-    maze = Map(map_file.read())
-    print(maze)
+    maze.set(Map(map_file.read()))
+    print(maze.get())
     # window = Tk()
     # window.title("Findexit")
     # window.geometry('1600x900')
