@@ -1,8 +1,0 @@
-TASK FINDEXIT
-    VAR test = 0
-    DO CHANGE test
-RESULT test
-
-TASK CHANGE x
-    x = x + 5
-RESULT 0

@@ -2,6 +2,8 @@ import copy
 
 from Variable.Variable import Variable, reference_wrapper
 
+function_name_debug = False
+
 
 class OperationObject:
     def __init__(self, lineno):
@@ -208,7 +210,8 @@ class Function(OperationObject):
 
     def call(self, call_parameters):
         try:
-            print(self.__function_name)
+            if function_name_debug:
+                print(self.__function_name)
             if len(call_parameters) != len(self.__parameters):
                 raise Exception(">>> incorrect arguments count")
             call_parameters_dict = {}
@@ -219,7 +222,8 @@ class Function(OperationObject):
                 _operation.execute()
             result = self.__result_var.execute()
             self.__stack.pop()
-            print('END ' + self.__function_name)
+            if function_name_debug:
+                print('END ' + self.__function_name)
             return result
         except Exception as exception:
             raise Exception(str(exception) + ' --> ' + str(self.lineno()))
@@ -294,13 +298,13 @@ class For(OperationObject):
             if counter_object.is_variable():
                 count += self.__calculate_count(counter_object, boundary_object, step_object)
             else:
-                if boundary_object._Value_value > counter_object._Value_value and step_object._Value_value > 0:
+                if boundary_object._Value__value > counter_object._Value__value and step_object._Value__value > 0:
                     count += (
-                                     boundary_object._Value_value - counter_object._Value_value) // step_object._Value_value + 1
-                if boundary_object._Value_value < counter_object._Value_value and step_object._Value_value < 0:
-                    count += (counter_object._Value_value - boundary_object._Value_value) // abs(
-                        step_object._Value_value) + 1
-                if boundary_object._Value_value != counter_object._Value_value and step_object._Value_value == 0:
+                                     boundary_object._Value__value - counter_object._Value__value) // step_object._Value__value + 1
+                if boundary_object._Value__value < counter_object._Value__value and step_object._Value__value < 0:
+                    count += (counter_object._Value__value - boundary_object._Value__value) // abs(
+                        step_object._Value__value) + 1
+                if boundary_object._Value__value != counter_object._Value__value and step_object._Value__value == 0:
                     raise Exception("step is zero, infinite loop")
         return count
 
@@ -329,9 +333,21 @@ class Print(OperationObject):
 
 
 class PrintStr(OperationObject):
-    def __init__(self, str, lineno):
+    def __init__(self, string, lineno):
         super().__init__(lineno)
-        self.__str = str
+        self.__string = string
 
     def execute(self):
-        print(self.__str)
+        print(self.__string)
+
+
+class Result(OperationObject):
+    def __init__(self, expression, lineno):
+        super().__init__(lineno)
+        self.__expression = expression
+
+    def execute(self):
+        try:
+            return self.__expression.execute()
+        except Exception as exception:
+            raise Exception(str(exception) + ' --> ' + str(self.lineno()))

@@ -1,0 +1,17 @@
+TASK FINDEXIT
+    VAR counter[2] = 0
+    VAR boundary[2] = 5
+    VAR step[2] = 1
+    VAR test_var = 0
+    PRINT "begin_variable_value"
+    PRINT test_var
+    FOR counter BOUNDARY boundary STEP step (
+        DO INC test_var
+    )
+    PRINT "end_variable_value"
+    PRINT test_var
+RESULT test_var
+
+TASK INC x
+    x = x + 1
+RESULT 0

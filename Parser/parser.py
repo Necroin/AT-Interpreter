@@ -17,10 +17,14 @@ class parser(object):
         self.good = True
         self.lexer = lexer()
         self.parser = yacc.yacc(module=self)
+        self.__debug = False
+        self.__tests = False
 
-    def parse(self, data):
+    def parse(self, data, debug=False, tests=False):
         try:
-            self.parser.parse(data, debug=False)
+            self.__debug = debug
+            self.__tests = tests
+            self.parser.parse(data, debug=True)
             return self.functions_map, self.good
         except LexError:
             sys.stderr.write(f'Illegal token {data}\n')
@@ -35,18 +39,23 @@ class parser(object):
                      | function"""
 
     def p_function(self, p):
-        """function : func_decl NEWLINE func_body RESULT expression NEWLINE"""
+        """function : func_decl NEWLINE func_body result NEWLINE"""
 
         p[0] = Function(functions_map=self.functions_map,
                         stack=self.__function_stack,
                         function_name=p[1][0],
                         parameters=p[1][1],
                         operations=p[3],
-                        result_var=p[5],
+                        result_var=p[4],
                         lineno=p[1][2]
                         )
         self.functions_map[p[1][0]] = [p[0], None]
         self.__function_stack = []
+
+    @staticmethod
+    def p_result(p):
+        """result : RESULT expression"""
+        p[0] = Result(p[2], p.lineno(1))
 
     @staticmethod
     def p_func_body(p):
@@ -98,8 +107,7 @@ class parser(object):
         else:
             p[0]: list = [p[1][0], p[1][1]]
 
-    @staticmethod
-    def p_statement(p):
+    def p_statement(self, p):
         """statement : PLEASE statement THANKS NEWLINE
                      | PLEASE statement NEWLINE
                      | var_declaration NEWLINE
@@ -111,30 +119,46 @@ class parser(object):
                      | print_word NEWLINE
                      | empty NEWLINE"""
         if len(p) == 5:
-            p[0] = [p[2][0], Command(operand=Robot.Robot.robot, command=lambda x: x.get().give_mood_points(4),
-                                     lineno=p.lineno(1))]
+            if self.__tests:
+                p[0] = [p[2][0], Empty()]
+            else:
+                p[0] = [p[2][0], Command(operand=Robot.Robot.robot, command=lambda x: x.get().give_mood_points(4),
+                                         lineno=p.lineno(1))]
         elif len(p) == 4:
-            p[0] = [p[2][0], Command(operand=Robot.Robot.robot, command=lambda x: x.get().give_mood_points(2),
-                                     lineno=p.lineno(1))]
+            if self.__tests:
+                p[0] = [p[2][0], Empty()]
+            else:
+                p[0] = [p[2][0], Command(operand=Robot.Robot.robot, command=lambda x: x.get().give_mood_points(2),
+                                         lineno=p.lineno(1))]
         else:
-            p[0] = [p[1], Command(operand=Robot.Robot.robot, command=lambda x: x.get().give_mood_points(-4),
-                                  lineno=p[1].lineno())]
+            if self.__tests:
+                p[0] = [p[1], Empty()]
+            else:
+                p[0] = [p[1], Command(operand=Robot.Robot.robot, command=lambda x: x.get().give_mood_points(-4),
+                                      lineno=p[1].lineno())]
 
-    @staticmethod
-    def p_print_word(p):
+    def p_print_word(self, p):
         """print_word : PRINT QUOTE VARIABLE QUOTE"""
-        p[0] = Empty()  # PrintStr(p[3], p.lineno(1))
+        if self.__debug:
+            p[0] = PrintStr(p[3], p.lineno(1))
+        else:
+            p[0] = Empty()
 
-    @staticmethod
-    def p_print(p):
+    def p_print(self, p):
         """print : PRINT expression"""
-        p[0] = Empty()  # Print(p[2], p.lineno(1))
+        if self.__debug:
+            p[0] = Print(p[2], p.lineno(1))
+        else:
+            p[0] = Empty()
 
-    @staticmethod
-    def p_statement_thanks(p):
+    def p_statement_thanks(self, p):
         """statement : statement THANKS NEWLINE"""
-        p[0] = [p[1][0],
-                Command(operand=Robot.Robot.robot, command=lambda x: x.get().give_mood_points(2), lineno=p[1].lineno())]
+        if self.__tests:
+            p[0] = [p[1][0], Empty()]
+        else:
+            p[0] = [p[1][0],
+                    Command(operand=Robot.Robot.robot, command=lambda x: x.get().give_mood_points(2),
+                            lineno=p[1].lineno())]
 
     @staticmethod
     def p_command_move(p):
@@ -185,7 +209,7 @@ class parser(object):
 
     @staticmethod
     def p_for_error(p):
-        """for : FOR error"""
+        """for : FOR error NEWLINE"""
         p[0] = Empty()
         sys.stderr.write(f'>>> incorrect for construction using, at {p.lineno(1)}  line \n')
 
@@ -250,7 +274,7 @@ class parser(object):
 
     @staticmethod
     def p_switch_error(p):
-        """switch : SWITCH error"""
+        """switch : SWITCH error NEWLINE"""
         p[0] = Empty()
         sys.stderr.write(f'>>> incorrect switch construction using, at {p.lineno(1)}  line \n')
 
@@ -476,7 +500,7 @@ class parser(object):
     def p_expression_bracket_l_error(p):
         """expression : error expression RBRACKET"""
         p[0] = Empty()
-        sys.stderr.write(f'>>> opening bracket missing, at {p.lineno(1)}  line\n')
+        sys.stderr.write(f'>>> opening bracket missing, at {p.lineno(3)}  line\n')
 
     @staticmethod
     def p_expression_bracket_r_error(p):
